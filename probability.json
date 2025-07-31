@@ -1,0 +1,117 @@
+{
+  "probability": "2024-01-01",
+  "templates": {
+    "defaults": {
+      "scale": [30, 30, 30]
+    },
+    "dice": {
+      "name": "dice",
+      "scale": [0.00025, 0.00025, 0.00025],
+      "src": "assets/dice.glb",
+      "faces": [
+        { "name": "1", "rotation": [-90, 0, 0] },
+        { "name": "2", "rotation": [0, 0, 0] },
+        { "name": "3", "rotation": [0, 0, 90] },
+        { "name": "4", "rotation": [0, 0, -90] },
+        { "name": "5", "rotation": [90, 0, 0] },
+        { "name": "6", "rotation": [180, 0, 0] }
+      ],
+      "template": "defaults"
+    },
+    "black-token": {
+      "name": "black-token",
+      "src": "assets/Black_Token.glb",
+      "template": "defaults"
+    },
+    "white-token": {
+      "name": "white-token",
+      "src": "assets/White_Token.glb",
+      "template": "defaults"
+    }
+  },
+  "states": [
+    {
+      "name": "Default gamestate",
+      "children": [
+        {
+          "locked": true,
+          "name": "Ur Board",
+          "position": [0, 0, 0],
+          "rotation": [0, 90, 0],
+          "scale": [0.0005, 0.0005, 0.0005],
+          "src": "assets/UR_Board.glb"
+        },
+        {
+          "name": "white-token1",
+          "position": [0.2, 0.015, 0],
+          "template": "white-token"
+        },
+        {
+          "name": "white-token2",
+          "position": [0.2, 0.015, 0.1],
+          "template": "white-token"
+        },
+        {
+          "name": "white-token3",
+          "position": [0.2, 0.015, 0.2],
+          "template": "white-token"
+        },
+        {
+          "name": "white-token4",
+          "position": [0.2, 0.015, 0.3],
+          "template": "white-token"
+        },
+        {
+          "name": "white-token5",
+          "position": [0.2, 0.015, 0.4],
+          "template": "white-token"
+        },
+        {
+          "name": "black-token1",
+          "position": [-0.2, 0.015, 0],
+          "template": "black-token"
+        },
+        {
+          "name": "black-token2",
+          "position": [-0.2, 0.015, 0.1],
+          "template": "black-token"
+        },
+        {
+          "name": "black-token3",
+          "position": [-0.2, 0.015, 0.2],
+          "template": "black-token"
+        },
+        {
+          "name": "black-token4",
+          "position": [-0.2, 0.015, 0.3],
+          "template": "black-token"
+        },
+        {
+          "name": "black-token5",
+          "position": [-0.2, 0.015, 0.4],
+          "template": "black-token"
+        },
+        {
+          "name": "dice1",
+          "position": [-0.4, 0.015, 0],
+          "template": "dice"
+        },
+        {
+          "name": "dice2",
+          "position": [-0.4, 0.015, 0.1],
+          "template": "dice"
+        },
+        {
+          "name": "dice3",
+          "position": [-0.4, 0.015, 0.2],
+          "template": "dice"
+        },
+        {
+          "name": "dice4",
+          "position": [-0.4, 0.015, 0.3],
+          "template": "dice"
+        }
+      ]
+    }
+  ]
+}

@@ -36,7 +36,7 @@
         {
           "locked": true,
           "name": "Ur Board",
-          "position": [0, 0, 0],
+          "position": [0, -0.03, 0],
           "rotation": [0, 90, 0],
           "scale": [0.0005, 0.0005, 0.0005],
           "src": "assets/UR_Board.glb"

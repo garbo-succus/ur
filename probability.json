@@ -1,32 +1,34 @@
 {
   "probability": "2024-01-01",
+  "about": "Game Of Ur Is A 2 Player Strategy Game",
   "templates": {
-    "defaults": {
-      "scale": [30, 30, 30]
+    "gem": {
+      "name": "Gemstone",
+      "src": "assets/gem.glb",
+      "scale": [0.02, 0.02, 0.02]
     },
-    "dice": {
-      "name": "dice",
-      "scale": [0.00025, 0.00025, 0.00025],
-      "src": "assets/dice.glb",
+    "blue-gem": {
+      "name": "blue-gem",
+      "color": "#678DC6",
+      "template": "gem"
+    },
+    "green-gem": {
+      "name": "green-gem",
+      "color": "#50C878",
+      "template": "gem"
+    },
+    "die": {
+      "name": "Classic die",
+      "src": "pieces/die/die.gltf",
+      "scale": [0.016, 0.016, 0.016],
       "faces": [
-        { "name": "1", "rotation": [-90, 0, 0] },
+        { "name": "1", "rotation": [90, 0, 0] },
         { "name": "2", "rotation": [0, 0, 0] },
         { "name": "3", "rotation": [0, 0, 90] },
         { "name": "4", "rotation": [0, 0, -90] },
-        { "name": "5", "rotation": [90, 0, 0] },
-        { "name": "6", "rotation": [180, 0, 0] }
-      ],
-      "template": "defaults"
-    },
-    "black-token": {
-      "name": "black-token",
-      "src": "assets/Black_Token.glb",
-      "template": "defaults"
-    },
-    "white-token": {
-      "name": "white-token",
-      "src": "assets/White_Token.glb",
-      "template": "defaults"
+        { "name": "5", "rotation": [180, 0, 0] },
+        { "name": "6", "rotation": [-90, 0, 0] }
+      ]
     }
   },
   "states": [
@@ -36,81 +38,149 @@
         {
           "locked": true,
           "name": "Ur Board",
-          "position": [0, -0.03, 0],
-          "rotation": [0, 90, 0],
-          "scale": [0.0005, 0.0005, 0.0005],
-          "src": "assets/UR_Board.glb"
+          "src": "assets/UR_Board.glb",
+          "scale": [
+            0.0003,
+            0.0003,
+            0.0003
+          ],
+          "position": [
+            0,
+            -0.02,
+            0
+          ],
+          "rotation": [
+            0,
+            90,
+            0
+          ]
         },
         {
-          "name": "white-token1",
-          "position": [0.2, 0.015, 0],
-          "template": "white-token"
-        },
-        {
-          "name": "white-token2",
-          "position": [0.2, 0.015, 0.1],
-          "template": "white-token"
-        },
-        {
-          "name": "white-token3",
-          "position": [0.2, 0.015, 0.2],
-          "template": "white-token"
-        },
-        {
-          "name": "white-token4",
-          "position": [0.2, 0.015, 0.3],
-          "template": "white-token"
-        },
-        {
-          "name": "white-token5",
-          "position": [0.2, 0.015, 0.4],
-          "template": "white-token"
-        },
-        {
-          "name": "black-token1",
-          "position": [-0.2, 0.015, 0],
-          "template": "black-token"
-        },
-        {
-          "name": "black-token2",
-          "position": [-0.2, 0.015, 0.1],
-          "template": "black-token"
-        },
-        {
-          "name": "black-token3",
-          "position": [-0.2, 0.015, 0.2],
-          "template": "black-token"
-        },
-        {
-          "name": "black-token4",
-          "position": [-0.2, 0.015, 0.3],
-          "template": "black-token"
-        },
-        {
-          "name": "black-token5",
-          "position": [-0.2, 0.015, 0.4],
-          "template": "black-token"
-        },
-        {
-          "name": "dice1",
-          "position": [-0.4, 0.015, 0],
-          "template": "dice"
-        },
-        {
-          "name": "dice2",
-          "position": [-0.4, 0.015, 0.1],
-          "template": "dice"
-        },
-        {
-          "name": "dice3",
-          "position": [-0.4, 0.015, 0.2],
-          "template": "dice"
-        },
-        {
-          "name": "dice4",
-          "position": [-0.4, 0.015, 0.3],
-          "template": "dice"
-        }
+              "name": "green-gem1",
+              "position": [
+                0.15,
+                0.015,
+                0
+              ],
+              "template": "green-gem"
+            },
+            {
+              "name": "green-gem2",
+              "position": [
+                0.15,
+                0.015,
+                0.03
+              ],
+              "template": "green-gem"
+            },
+            {
+              "name": "green-gem3",
+              "position": [
+                0.15,
+                0.015,
+                0.06
+              ],
+              "template": "green-gem"
+            },
+            {
+              "name": "green-gem4",
+              "position": [
+                0.15,
+                0.015,
+                0.09
+              ],
+              "template": "green-gem"
+            },
+            {
+              "name": "green-gem5",
+              "position": [
+                0.15,
+                0.015,
+                0.12
+              ],
+              "template": "green-gem"
+            },
+            {
+              "name": "blue-gem1",
+              "position": [
+                -0.15,
+                0.015,
+                0
+              ],
+              "template": "blue-gem"
+            },
+            {
+              "name": "blue-gem2",
+              "position": [
+                -0.15,
+                0.015,
+                0.03
+              ],
+              "template": "blue-gem"
+            },
+            {
+              "name": "blue-gem3",
+              "position": [
+                -0.15,
+                0.015,
+                0.06
+              ],
+              "template": "blue-gem"
+            },
+            {
+              "name": "blue-gem4",
+              "position": [
+                -0.15,
+                0.015,
+                0.09
+              ],
+              "template": "blue-gem"
+            },
+            {
+              "name": "blue-gem5",
+              "position": [
+                -0.15,
+                0.015,
+                0.12
+              ],
+              "template": "blue-gem"
+            },
+            {
+              "name": "dice1",
+              "position": [
+                -0.2,
+                0.015,
+                0
+              ],
+              "template": "die"
+            },
+            {
+              "name": "dice2",
+              "position": [
+                -0.2,
+                0.015,
+                0.05
+              ],
+              "template": "die"
+            },
+            {
+              "name": "dice3",
+              "position": [
+                -0.2,
+                0.015,
+                0.1
+              ],
+              "template": "die"
+            },
+            {
+              "name": "dice4",
+              "position": [
+                -0.2,
+                0.015,
+                0.15
+              ],
+              "template": "die"
+            }
       ]
     }
   ]

@@ -14,8 +14,8 @@ for item in manifest['files']:
 manifest_path.write_text(json.dumps(manifest, indent=2) + '\n')
 output = root / 'dist' / 'mod.zip'
 output.parent.mkdir(exist_ok=True)
-paths = ['package.json', 'release.json', 'scripts/build.py'] + [item['path'] for item in manifest['files']]
-paths += [name for name in ['README.md', 'LICENSE.md', 'screenshot.png'] if (root / name).is_file()]
+paths = ['package.json', 'release.json', 'catalog.json'] + [item['path'] for item in manifest['files']]
+paths += [name for name in ['README.md', 'LICENSE.md'] if (root / name).is_file()]
 with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED) as archive:
     for name in sorted(set(paths)):
         archive.write(root / name, name)

@@ -113,8 +113,8 @@ class DieGeometryTest(unittest.TestCase):
                 self.assertGreater(abs((b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0])), 1e-10)
         self.assertEqual(doc['extras']['probability']['faces'], entry['faces'])
         self.assertEqual([f['rotation'] for f in entry['faces']], [
-            [math.acos(-1/3), 0, 0], [math.acos(-1/3), -2*math.pi/3, 0],
-            [math.acos(-1/3), 2*math.pi/3, 0], [0, 0, 0]])
+            [-math.acos(-1/3), math.pi, 0], [-math.acos(-1/3), math.pi/3, 0],
+            [-math.acos(-1/3), -math.pi/3, 0], [0, 0, 0]])
         pip_primitive = doc['meshes'][0]['primitives'][1]
         pip_points = accessor(pip_primitive['attributes']['POSITION'])
         pip_normals = accessor(pip_primitive['attributes']['NORMAL'])
@@ -140,6 +140,13 @@ class DieGeometryTest(unittest.TestCase):
         supported_faces = []
         resting_heights = []
         for face in entry['faces']:
+            # A face change must permute the regular body's vertices in place,
+            # not just put some face flat. This also preserves the silhouette
+            # under any common table-axis turn or camera angle.
+            for point in points:
+                rotated = rotate(point, face['rotation'])
+                self.assertLess(min(math.dist(rotated, target) for target in points), 2e-9,
+                                'Changing face changes the body outline')
             rotated_normals = [rotate(n, face['rotation']) for n in main_faces]
             support = min(range(4), key=lambda i: rotated_normals[i][1])
             self.assertAlmostEqual(rotated_normals[support][1], -1, places=10)

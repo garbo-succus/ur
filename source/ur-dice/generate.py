@@ -16,7 +16,7 @@ BEVEL = 0.05
 SCALE = 0.016
 SEGMENTS = 6
 TILT = math.acos(-1 / 3)
-TURN = 2 * math.pi / 3
+TURN = math.pi / 3
 
 
 def add(a, b):
@@ -145,9 +145,14 @@ assert len(positions) == 6*49
 
 # Each face pose brings the opposite corner to the top. The top and right
 # corners are marked, preserving the existing outcome order 0, 0, 1, 1.
+# These are symmetries of the whole tetrahedron, so every outcome has the
+# same footprint and silhouette. Merely aligning a face normal leaves a
+# free table-axis turn: Rx(TILT) alone points the footprint the other way.
+# Compose a world Y half-turn with those poses, simplified in XYZ order:
+# Ry(pi) Rx(TILT) Ry(theta) = Rx(-TILT) Ry(pi + theta).
 faces = [{'name': name, 'rotation': rotation} for name, rotation in (
-    ('0', [TILT, 0, 0]), ('0', [TILT, -TURN, 0]),
-    ('1', [TILT, TURN, 0]), ('1', [0, 0, 0]),
+    ('0', [-TILT, math.pi, 0]), ('0', [-TILT, TURN, 0]),
+    ('1', [-TILT, -TURN, 0]), ('1', [0, 0, 0]),
 )]
 doc = {
     'asset': {'version': '2.0', 'generator': 'source/ur-dice/generate.py; regular rounded tetrahedron'},

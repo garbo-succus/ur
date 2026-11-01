@@ -21,3 +21,7 @@ RELEASED UNDER [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/dee
 The current Play setup is in `release.json`. Models use metre dimensions and every piece has an explicit `size`; resting heights and stacks are resolved by Play.
 
 Run `npm run build` to package the current working tree into `dist/mod.zip`. This includes uncommitted edits. Load that ZIP with Play → Edit → Create → Load, or open this folder through a template URL.
+
+Regenerate the regular Ur tetrahedron with `python3 source/ur-dice/generate.py`, then validate it with `python3 scripts/test_dice.py` and package it with `npm run build`.
+
+The generator derives the centred geometry, uniform rounded bevels, normals, UV islands and six circular corner markings from a regular tetrahedron. Its four roll poses use `acos(-1/3)` (109.4712206°), ±120° and zeros. It updates both `catalog.json` and the embedded glTF face metadata, plus the explicit die sizes in `release.json` so Play does not stretch the new mesh. All four faces have equal resting height. Ur uses solid materials and geometric dots, so no texture images need rebaking. The earlier imported D4 files remain as historical source references; regeneration no longer reads them.

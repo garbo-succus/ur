@@ -1,16 +1,22 @@
-"""Build the Ur die from the tokens project's beveled D4 geometry.
+"""Generate a regular, centred Ur tetrahedron with uniform rounded edges.
 
-White circles repeat on the three faces meeting each of two marked corners.
-Run with Python 3; no third-party packages are needed.
+Stdlib only. Coordinates, normals, UVs, markings and roll poses are derived
+from the same mathematical solid; no imported mesh transforms are needed.
 """
 import base64
+from itertools import combinations
 import json
 import math
 from pathlib import Path
 import struct
 
-HERE = Path(__file__).resolve().parent
-ROOT = HERE.parent.parent
+ROOT = Path(__file__).resolve().parents[2]
+RADIUS = 1.125
+BEVEL = 0.05
+SCALE = 0.016
+SEGMENTS = 6
+TILT = math.acos(-1 / 3)
+TURN = 2 * math.pi / 3
 
 
 def add(a, b):
@@ -37,73 +43,178 @@ def unit(a):
     return mul(a, 1 / math.sqrt(dot(a, a)))
 
 
-doc = json.loads((HERE / 'd4.gltf').read_text())
-data = bytearray((HERE / 'd4.bin').read_bytes())
-positions = list(struct.iter_unpack('<3f', data[:1296]))
-indices = struct.unpack('<444H', data[3456:4344])
-faces = []
-circles = []
-normals = []
-circle_indices = []
-for i in range(0, len(indices), 3):
-    vertices = [positions[j] for j in indices[i:i+3]]
-    a, b, c = vertices
-    normal = cross(sub(b, a), sub(c, a))
-    if math.sqrt(dot(normal, normal)) < 0.2:
-        continue  # Bevel triangles, not the four main faces.
-    normal = unit(normal)
-    faces.append(normal)
-    centroid = mul(add(add(a, b), c), 1/3)
-    for corner in vertices:
-        # Mark the upper corner and the lower right corner only.
-        if not (corner[1] > 0.7 or corner[0] > 0.7):
+# Top, lower right, lower back, lower left. Every pair has the same distance.
+vertices = [mul(v, RADIUS) for v in (
+    (0, 1, 0),
+    (math.sqrt(2/3), -1/3, math.sqrt(2)/3),
+    (0, -1/3, -2*math.sqrt(2)/3),
+    (-math.sqrt(2/3), -1/3, math.sqrt(2)/3),
+)]
+face_normals = [mul(unit(v), -1) for v in vertices]
+# Minkowski sum of a smaller regular tetrahedron and a sphere: planar faces,
+# cylindrical edge strips and spherical corners all meet tangentially.
+inner = [mul(v, 1 - 3*BEVEL/RADIUS) for v in vertices]
+positions, normals, uvs, indices = [], [], [], []
+
+
+def vertex(point, normal, uv, patch):
+    index = len(positions)
+    positions.append(point)
+    normals.append(normal)
+    # Fourteen separate UV islands, with gutters, in a 4x4 atlas.
+    uvs.append(((patch % 4 + 0.04 + 0.92*uv[0])/4,
+                (patch // 4 + 0.04 + 0.92*uv[1])/4))
+    return index
+
+
+def triangle(a, b, c):
+    normal = cross(sub(positions[b], positions[a]), sub(positions[c], positions[a]))
+    if dot(normal, add(add(normals[a], normals[b]), normals[c])) < 0:
+        b, c = c, b
+    indices.extend((a, b, c))
+
+
+face_points = []
+for opposite, normal in enumerate(face_normals):
+    corners = [i for i in range(4) if i != opposite]
+    points = [add(inner[i], mul(normal, BEVEL)) for i in corners]
+    face_points.append(dict(zip(corners, points)))
+    ids = [vertex(p, normal, uv, opposite) for p, uv in zip(points, ((0, 0), (1, 0), (0.5, math.sqrt(3)/2)))]
+    triangle(*ids)
+
+for patch, (a, b) in enumerate(combinations(range(4), 2), 4):
+    n0, n1 = [face_normals[i] for i in range(4) if i not in (a, b)]
+    rows = []
+    for step in range(SEGMENTS + 1):
+        t = step / SEGMENTS
+        normal = unit(add(mul(n0, 1-t), mul(n1, t)))
+        rows.append([vertex(add(inner[i], mul(normal, BEVEL)), normal, (u, t), patch)
+                     for i, u in ((a, 0), (b, 1))])
+    for previous, following in zip(rows, rows[1:]):
+        triangle(previous[0], previous[1], following[1])
+        triangle(previous[0], following[1], following[0])
+
+for corner in range(4):
+    ns = [face_normals[i] for i in range(4) if i != corner]
+    grid = {}
+    for i in range(SEGMENTS + 1):
+        for j in range(SEGMENTS + 1-i):
+            weights = ((SEGMENTS-i-j)/SEGMENTS, i/SEGMENTS, j/SEGMENTS)
+            normal = unit(tuple(sum(n[axis]*w for n, w in zip(ns, weights)) for axis in range(3)))
+            grid[i, j] = vertex(add(inner[corner], mul(normal, BEVEL)), normal,
+                                ((i+j/2)/SEGMENTS, j/SEGMENTS), 10+corner)
+    for i in range(SEGMENTS):
+        for j in range(SEGMENTS-i):
+            triangle(grid[i, j], grid[i+1, j], grid[i, j+1])
+            if i+j < SEGMENTS-1:
+                triangle(grid[i+1, j], grid[i+1, j+1], grid[i, j+1])
+
+body = (positions, normals, uvs, indices)
+positions, normals, uvs, indices = [], [], [], []
+for face, corners in enumerate(face_points):
+    normal = face_normals[face]
+    centroid = mul(tuple(sum(p[i] for p in corners.values()) for i in range(3)), 1/3)
+    points = list(corners.values())
+    u = unit(sub(points[1], points[0]))
+    v = cross(normal, u)
+    for corner, point in corners.items():
+        if corner not in (0, 1):
             continue
-        center = add(add(mul(corner, 0.70), mul(centroid, 0.30)), mul(normal, 0.001))
-        u = unit(sub(b, a))
-        v = cross(normal, u)
-        start = len(circles)
-        circles.append(center)
+        center = add(add(mul(point, 0.70), mul(centroid, 0.30)), mul(normal, 0.001))
+        start = len(positions)
+        island = start // 49
+
+        def pip_uv(x, y):
+            # Separate islands allow future texture edits without repeating
+            # a mark on all six circles. Gutters prevent filtering bleed.
+            return ((island % 3 + 0.04 + 0.92*x)/3,
+                    (island // 3 + 0.04 + 0.92*y)/2)
+
+        positions.append(center)
+        normals.append(normal)
+        uvs.append(pip_uv(0.5, 0.5))
         for step in range(48):
             angle = step * math.tau / 48
-            circles.append(add(center, add(mul(u, 0.075 * math.cos(angle)), mul(v, 0.075 * math.sin(angle)))))
-        normals.extend([normal] * 49)
+            positions.append(add(center, add(mul(u, 0.075*math.cos(angle)), mul(v, 0.075*math.sin(angle)))))
+            normals.append(normal)
+            uvs.append(pip_uv(0.5+0.5*math.cos(angle), 0.5+0.5*math.sin(angle)))
         for step in range(48):
-            circle_indices.extend([start, start + 1 + step, start + 1 + (step + 1) % 48])
+            triangle(start, start+1+step, start+1+(step+1) % 48)
+pips = (positions, normals, uvs, indices)
+assert len(positions) == 6*49
+
+# Each face pose brings the opposite corner to the top. The top and right
+# corners are marked, preserving the existing outcome order 0, 0, 1, 1.
+faces = [{'name': name, 'rotation': rotation} for name, rotation in (
+    ('0', [TILT, 0, 0]), ('0', [TILT, -TURN, 0]),
+    ('1', [TILT, TURN, 0]), ('1', [0, 0, 0]),
+)]
+doc = {
+    'asset': {'version': '2.0', 'generator': 'source/ur-dice/generate.py; regular rounded tetrahedron'},
+    'scene': 0, 'scenes': [{'nodes': [0]}],
+    'nodes': [{'mesh': 0, 'name': 'Ur die', 'scale': [SCALE]*3}],
+    'meshes': [{'name': 'Regular Ur tetrahedron', 'primitives': []}],
+    'materials': [
+        {'name': 'Black die', 'pbrMetallicRoughness': {'baseColorFactor': [0.009, 0.009, 0.009, 1], 'metallicFactor': 0, 'roughnessFactor': 0.38}},
+        {'name': 'White corner circles', 'pbrMetallicRoughness': {'baseColorFactor': [1, 1, 1, 1], 'metallicFactor': 0, 'roughnessFactor': 0.55}},
+    ],
+    'bufferViews': [], 'accessors': [],
+    'extras': {'probability': {'faces': faces}},
+}
+data = bytearray()
 
 
-def accessor(values, components, fmt, component_type, kind, target):
+def accessor(values, components, kind, fmt='f', component_type=5126):
     while len(data) % 4:
         data.append(0)
     offset = len(data)
-    flat = [x for value in values for x in value] if components > 1 else values
-    data.extend(struct.pack('<' + fmt * len(flat), *flat))
+    flat = [v for row in values for v in row] if components > 1 else values
+    encoded = struct.pack('<' + fmt*len(flat), *flat)
+    data.extend(encoded)
     view = len(doc['bufferViews'])
-    doc['bufferViews'].append({'buffer': 0, 'byteOffset': offset, 'byteLength': len(data)-offset, 'target': target})
+    doc['bufferViews'].append({'buffer': 0, 'byteOffset': offset, 'byteLength': len(data)-offset,
+                               'target': 34963 if kind == 'SCALAR' else 34962})
     acc = {'bufferView': view, 'componentType': component_type, 'count': len(values), 'type': kind}
     if kind == 'VEC3':
-        acc['min'] = [min(v[j] for v in values) for j in range(3)]
-        acc['max'] = [max(v[j] for v in values) for j in range(3)]
+        # glTF bounds describe the stored float32 data, not the preceding
+        # double-precision construction (which can round outside those bounds).
+        stored = list(struct.iter_unpack('<3f', encoded))
+        acc.update(min=[min(p[i] for p in stored) for i in range(3)],
+                   max=[max(p[i] for p in stored) for i in range(3)])
+    index = len(doc['accessors'])
     doc['accessors'].append(acc)
-    return len(doc['accessors'])-1
+    return index
 
 
-pos = accessor(circles, 3, 'f', 5126, 'VEC3', 34962)
-nor = accessor(normals, 3, 'f', 5126, 'VEC3', 34962)
-ind = accessor(circle_indices, 1, 'H', 5123, 'SCALAR', 34963)
-doc['meshes'][0]['primitives'].append({'attributes': {'POSITION': pos, 'NORMAL': nor}, 'indices': ind, 'material': 1})
-doc['materials'] = [
-    {'name': 'Black die', 'pbrMetallicRoughness': {'baseColorFactor': [0.009, 0.009, 0.009, 1], 'metallicFactor': 0, 'roughnessFactor': 0.38}},
-    {'name': 'White corner circles', 'pbrMetallicRoughness': {'baseColorFactor': [1, 1, 1, 1], 'metallicFactor': 0, 'roughnessFactor': 0.55}},
-]
-for key in ('textures', 'images', 'samplers', 'extensionsUsed', 'extensionsRequired'):
-    doc.pop(key, None)
-doc['nodes'][0]['name'] = 'Ur die'
-doc['meshes'][0]['name'] = 'Beveled D4 with two marked corners'
-doc['asset']['generator'] = 'source/ur-dice/generate.py; geometry from tokens D4'
-doc['buffers'] = [{'byteLength': len(data)}]
-# Authored metre dimensions match the current release's original D4s.
-doc['nodes'][0]['scale'] = [0.016, 0.016, 0.016]
-doc['buffers'][0]['uri'] = 'data:application/octet-stream;base64,' + base64.b64encode(data).decode()
+for material, (ps, ns, uv, ids) in enumerate((body, pips)):
+    doc['meshes'][0]['primitives'].append({
+        'attributes': {'POSITION': accessor(ps, 3, 'VEC3'), 'NORMAL': accessor(ns, 3, 'VEC3'),
+                       'TEXCOORD_0': accessor(uv, 2, 'VEC2')},
+        'indices': accessor(ids, 1, 'SCALAR', 'H', 5123), 'material': material,
+    })
+doc['buffers'] = [{'byteLength': len(data), 'uri': 'data:application/octet-stream;base64,' + base64.b64encode(data).decode()}]
 (ROOT / 'pieces/ur-dice.gltf').write_text(json.dumps(doc, separators=(',', ':')) + '\n')
-assert len(faces) == 4 and len(circles) == 6 * 49
-print('Wrote pieces/ur-dice.gltf: two marked corners, six circles.')
+catalog_path = ROOT / 'catalog.json'
+catalog = json.loads(catalog_path.read_text())
+entry = next(p for p in catalog['pieces'] if p['src'] == 'pieces/ur-dice.gltf')
+entry['faces'] = faces
+catalog_path.write_text(json.dumps(catalog, indent=2) + '\n')
+# Keep explicit Play sizes in sync: stale sizes would stretch the regular mesh.
+bounds = [doc['accessors'][p['attributes']['POSITION']]
+          for p in doc['meshes'][0]['primitives']]
+size = [(max(b['max'][i] for b in bounds)-min(b['min'][i] for b in bounds))*SCALE
+        for i in range(3)]
+release_path = ROOT / 'release.json'
+release = json.loads(release_path.read_text())
+
+
+def resize(pieces):
+    for piece in pieces:
+        if piece.get('src') == 'pieces/ur-dice.gltf':
+            piece['size'] = size
+        resize(piece.get('children', []))
+
+
+resize(release['game']['children'])
+release_path.write_text(json.dumps(release, indent=2) + '\n')
+print('Wrote regular Ur die, catalog poses and release dimensions. Run scripts/build.py to package.')

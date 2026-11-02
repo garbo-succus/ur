@@ -1,7 +1,7 @@
 # Ur dice source
 
 `generate.py` is the current source of truth. It produces the current model at
-`../../pieces/ur-dice.gltf`: a regular tetrahedron with a 1 mm fillet, four face
+`../../pieces/ur-dice.gltf`: a regular tetrahedron with a 1.2 mm fillet, four face
 UV islands including rounded rims, and six geometric white corner circles.
 
 The imported `d4.gltf` and its maps are historical artwork references. They are

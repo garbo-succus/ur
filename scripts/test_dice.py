@@ -118,17 +118,17 @@ class DieGeometryTest(unittest.TestCase):
         pip_primitive = doc['meshes'][0]['primitives'][1]
         pip_points = accessor(pip_primitive['attributes']['POSITION'])
         pip_normals = accessor(pip_primitive['attributes']['NORMAL'])
-        self.assertEqual(len(pip_points), 6*49)
+        self.assertEqual(len(pip_points), 6*17)
         pip_uvs = accessor(pip_primitive['attributes']['TEXCOORD_0'])
         pip_islands = []
-        for start in range(0, len(pip_points), 49):
-            island_uvs = pip_uvs[start:start+49]
+        for start in range(0, len(pip_points), 17):
+            island_uvs = pip_uvs[start:start+17]
             pip_islands.append(([min(p[i] for p in island_uvs) for i in range(2)],
                                 [max(p[i] for p in island_uvs) for i in range(2)]))
             centre_pip, normal_pip = pip_points[start], pip_normals[start]
-            radii = [math.dist(centre_pip, p) for p in pip_points[start+1:start+49]]
+            radii = [math.dist(centre_pip, p) for p in pip_points[start+1:start+17]]
             self.assertLess(max(radii)-min(radii), 1e-7)
-            for point in pip_points[start:start+49]:
+            for point in pip_points[start:start+17]:
                 # Positions and normals are stored as float32.
                 self.assertLess(abs(dot([point[i]-centre_pip[i] for i in range(3)], normal_pip)), 1e-7)
         for i, (a_min, a_max) in enumerate(pip_islands):
@@ -153,7 +153,7 @@ class DieGeometryTest(unittest.TestCase):
             supported_faces.append(support)
             resting_heights.append(-min(rotate(p, face['rotation'])[1] for p in all_points))
             upper_dots = sum(rotate(pip_points[i], face['rotation'])[1] > 0.4
-                             for i in range(0, len(pip_points), 49))
+                             for i in range(0, len(pip_points), 17))
             self.assertEqual(upper_dots, 3 if face['name'] == '1' else 0)
             # Ground placement changes only Y; X/Z of the body's centre must stay fixed.
             world_centre = rotate(centre, face['rotation'])
@@ -175,7 +175,7 @@ class DieGeometryTest(unittest.TestCase):
         check_sizes(release['game']['children'])
         self.assertEqual(len(checked_dice), 4)
 
-    def test_one_mm_rounding_pip_clearance_and_continuous_face_uvs(self):
+    def test_one_point_two_mm_rounding_pip_clearance_and_continuous_face_uvs(self):
         from collections import defaultdict
         doc = json.loads((ROOT / 'pieces/ur-dice.gltf').read_text())
         data = base64.b64decode(doc['buffers'][0]['uri'].split(',')[1])
@@ -189,7 +189,7 @@ class DieGeometryTest(unittest.TestCase):
         uv = read(body['attributes']['TEXCOORD_0'],2)
         ids = [x[0] for x in read(body['indices'],1)]
         scale = doc['nodes'][0]['scale'][0]
-        radius = .001 / scale
+        radius = .0012 / scale
         # Independent exact tetrahedral support planes, in model units.
         planes = [(0,-1,0),(-math.sqrt(2/3),1/3,-math.sqrt(2)/3),
                   (0,1/3,2*math.sqrt(2)/3),(math.sqrt(2/3),1/3,-math.sqrt(2)/3)]

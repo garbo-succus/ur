@@ -13,8 +13,9 @@ import struct
 ROOT = Path(__file__).resolve().parents[2]
 RADIUS = 1.125
 SCALE = 0.016
-BEVEL = 0.001 / SCALE
-SEGMENTS = 6
+BEVEL = 0.0012 / SCALE
+SEGMENTS = 2
+PIP_SEGMENTS = 16
 TILT = math.acos(-1 / 3)
 TURN = math.pi / 3
 
@@ -140,7 +141,7 @@ for face, corners in enumerate(face_points):
             continue
         center = add(add(mul(point, 0.70), mul(centroid, 0.30)), mul(normal, 0.001))
         start = len(positions)
-        island = start // 49
+        island = start // (PIP_SEGMENTS + 1)
 
         def pip_uv(x, y):
             # Separate islands allow future texture edits without repeating
@@ -151,15 +152,15 @@ for face, corners in enumerate(face_points):
         positions.append(center)
         normals.append(normal)
         uvs.append(pip_uv(0.5, 0.5))
-        for step in range(48):
-            angle = step * math.tau / 48
+        for step in range(PIP_SEGMENTS):
+            angle = step * math.tau / PIP_SEGMENTS
             positions.append(add(center, add(mul(u, 0.075*math.cos(angle)), mul(v, 0.075*math.sin(angle)))))
             normals.append(normal)
             uvs.append(pip_uv(0.5+0.5*math.cos(angle), 0.5+0.5*math.sin(angle)))
-        for step in range(48):
-            triangle(start, start+1+step, start+1+(step+1) % 48)
+        for step in range(PIP_SEGMENTS):
+            triangle(start, start+1+step, start+1+(step+1) % PIP_SEGMENTS)
 pips = (positions, normals, uvs, indices)
-assert len(positions) == 6*49
+assert len(positions) == 6*(PIP_SEGMENTS + 1)
 
 # Each face pose brings the opposite corner to the top. The top and right
 # corners are marked, preserving the existing outcome order 0, 0, 1, 1.

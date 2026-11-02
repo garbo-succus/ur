@@ -242,3 +242,7 @@ def resize(pieces):
 resize(release['game']['children'])
 release_path.write_text(json.dumps(release, indent=2) + '\n')
 print('Wrote regular Ur die, catalog poses and release dimensions. Run scripts/build.py to package.')
+
+# Exact vertex welding and cache/fetch ordering preserve all geometry and UVs.
+from optimize_gltf import optimize_file
+optimize_file(ROOT / "pieces/ur-dice.gltf")

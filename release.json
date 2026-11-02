@@ -148,8 +148,8 @@
     {
       "path": "pieces/ur-dice.gltf",
       "mediaType": "model/gltf+json",
-      "bytes": 18570,
-      "sha256": "55097eb158de71e378d9fd16f2236ce548efc9124b71d91031009eb546e9f925"
+      "bytes": 14215,
+      "sha256": "39ce6317c1a1cbad92b42769a27d28efeaf514622d3958a6c78cc0f8ff49f936"
     }
   ],
   "game": {

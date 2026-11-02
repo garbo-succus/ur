@@ -12,8 +12,8 @@ import struct
 
 ROOT = Path(__file__).resolve().parents[2]
 RADIUS = 1.125
-BEVEL = 0.05
 SCALE = 0.016
+BEVEL = 0.001 / SCALE
 SEGMENTS = 6
 TILT = math.acos(-1 / 3)
 TURN = math.pi / 3
@@ -61,9 +61,9 @@ def vertex(point, normal, uv, patch):
     index = len(positions)
     positions.append(point)
     normals.append(normal)
-    # Fourteen separate UV islands, with gutters, in a 4x4 atlas.
-    uvs.append(((patch % 4 + 0.04 + 0.92*uv[0])/4,
-                (patch // 4 + 0.04 + 0.92*uv[1])/4))
+    # Four face islands include their rounded rims in a spacious 2x2 grid.
+    uvs.append(((patch % 2 + 0.08 + 0.84*uv[0])/2,
+                (patch // 2 + 0.04 + 0.84*uv[1])/2))
     return index
 
 
@@ -75,39 +75,57 @@ def triangle(a, b, c):
 
 
 face_points = []
+frames = []
 for opposite, normal in enumerate(face_normals):
     corners = [i for i in range(4) if i != opposite]
     points = [add(inner[i], mul(normal, BEVEL)) for i in corners]
     face_points.append(dict(zip(corners, points)))
-    ids = [vertex(p, normal, uv, opposite) for p, uv in zip(points, ((0, 0), (1, 0), (0.5, math.sqrt(3)/2)))]
-    triangle(*ids)
+    centre = mul(normal, RADIUS/3)
+    # Stable planar projection shared by the face and its curved rim.
+    up = unit(sub(vertices[corners[0]], centre))
+    right = cross(up, normal)
+    radius = math.dist(vertices[corners[0]], centre)
+    frames.append((centre, right, up, radius))
 
-for patch, (a, b) in enumerate(combinations(range(4), 2), 4):
-    n0, n1 = [face_normals[i] for i in range(4) if i not in (a, b)]
-    rows = []
-    for step in range(SEGMENTS + 1):
-        t = step / SEGMENTS
-        normal = unit(add(mul(n0, 1-t), mul(n1, t)))
-        rows.append([vertex(add(inner[i], mul(normal, BEVEL)), normal, (u, t), patch)
-                     for i, u in ((a, 0), (b, 1))])
-    for previous, following in zip(rows, rows[1:]):
-        triangle(previous[0], previous[1], following[1])
-        triangle(previous[0], following[1], following[0])
 
+def face_vertex(point, normal, face):
+    centre, u, v, radius = frames[face]
+    delta = sub(point, centre)
+    return vertex(point, normal, (0.5+dot(delta,u)/(2*radius),
+                                  0.5+dot(delta,v)/(2*radius)), face)
+
+
+for face, corners in enumerate(face_points):
+    triangle(*(face_vertex(p, face_normals[face], face) for p in corners.values()))
+for a, b in combinations(range(4),2):
+    neighbours = [i for i in range(4) if i not in (a,b)]
+    middle = unit(add(*(face_normals[i] for i in neighbours)))
+    for face in neighbours:
+        rows=[]
+        for step in range(SEGMENTS+1):
+            t=step/SEGMENTS
+            n=unit(add(mul(face_normals[face],1-t),mul(middle,t)))
+            rows.append([face_vertex(add(inner[i],mul(n,BEVEL)),n,face) for i in (a,b)])
+        for p,q in zip(rows,rows[1:]):
+            triangle(p[0],p[1],q[1]); triangle(p[0],q[1],q[0])
 for corner in range(4):
-    ns = [face_normals[i] for i in range(4) if i != corner]
-    grid = {}
-    for i in range(SEGMENTS + 1):
-        for j in range(SEGMENTS + 1-i):
-            weights = ((SEGMENTS-i-j)/SEGMENTS, i/SEGMENTS, j/SEGMENTS)
-            normal = unit(tuple(sum(n[axis]*w for n, w in zip(ns, weights)) for axis in range(3)))
-            grid[i, j] = vertex(add(inner[corner], mul(normal, BEVEL)), normal,
-                                ((i+j/2)/SEGMENTS, j/SEGMENTS), 10+corner)
-    for i in range(SEGMENTS):
-        for j in range(SEGMENTS-i):
-            triangle(grid[i, j], grid[i+1, j], grid[i, j+1])
-            if i+j < SEGMENTS-1:
-                triangle(grid[i+1, j], grid[i+1, j+1], grid[i, j+1])
+    neighbours=[i for i in range(4) if i != corner]
+    centre=unit(tuple(sum(face_normals[i][k] for i in neighbours) for k in range(3)))
+    for a,b in combinations(neighbours,2):
+        middle=unit(add(face_normals[a],face_normals[b]))
+        for face in (a,b):
+            triangle_normals=[centre,face_normals[face],middle]
+            grid={}
+            for i in range(SEGMENTS+1):
+                for j in range(SEGMENTS+1-i):
+                    weights=((SEGMENTS-i-j)/SEGMENTS,i/SEGMENTS,j/SEGMENTS)
+                    n=unit(tuple(sum(n[k]*w for n,w in zip(triangle_normals,weights)) for k in range(3)))
+                    grid[i,j]=face_vertex(add(inner[corner],mul(n,BEVEL)),n,face)
+            for i in range(SEGMENTS):
+                for j in range(SEGMENTS-i):
+                    triangle(grid[i,j],grid[i+1,j],grid[i,j+1])
+                    if i+j<SEGMENTS-1:
+                        triangle(grid[i+1,j],grid[i+1,j+1],grid[i,j+1])
 
 body = (positions, normals, uvs, indices)
 positions, normals, uvs, indices = [], [], [], []

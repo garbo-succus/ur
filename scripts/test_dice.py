@@ -85,7 +85,7 @@ class DieGeometryTest(unittest.TestCase):
         self.assertLess(max(lengths)-min(lengths), 2e-9)
         for i, a in enumerate(main_faces):
             for b in main_faces[i+1:]:
-                self.assertAlmostEqual(dot(a, b), -1/3, places=7)
+                self.assertAlmostEqual(dot(a, b), -1/3, delta=1e-7) # float32 mesh planes
         # The bevel patches join to a closed solid, with no cracks or doubled faces.
         from collections import Counter
         edges = Counter()
@@ -174,6 +174,64 @@ class DieGeometryTest(unittest.TestCase):
                 check_sizes(piece.get('children', []))
         check_sizes(release['game']['children'])
         self.assertEqual(len(checked_dice), 4)
+
+    def test_one_mm_rounding_pip_clearance_and_continuous_face_uvs(self):
+        from collections import defaultdict
+        doc = json.loads((ROOT / 'pieces/ur-dice.gltf').read_text())
+        data = base64.b64decode(doc['buffers'][0]['uri'].split(',')[1])
+        def read(index, width):
+            a = doc['accessors'][index]; v = doc['bufferViews'][a['bufferView']]
+            fmt = '<' + {5126:'f',5123:'H'}[a['componentType']] * width
+            return list(struct.iter_unpack(fmt, data[v['byteOffset']:v['byteOffset']+v['byteLength']]))
+        body, pips = doc['meshes'][0]['primitives']
+        ps = read(body['attributes']['POSITION'],3)
+        ns = read(body['attributes']['NORMAL'],3)
+        uv = read(body['attributes']['TEXCOORD_0'],2)
+        ids = [x[0] for x in read(body['indices'],1)]
+        scale = doc['nodes'][0]['scale'][0]
+        radius = .001 / scale
+        # Independent exact tetrahedral support planes, in model units.
+        planes = [(0,-1,0),(-math.sqrt(2/3),1/3,-math.sqrt(2)/3),
+                  (0,1/3,2*math.sqrt(2)/3),(math.sqrt(2/3),1/3,-math.sqrt(2)/3)]
+        seen = {}
+        for p,n in zip(ps,ns):
+            core = [p[k]-radius*n[k] for k in range(3)]
+            gaps = [1.125/3-radius-dot(core,f) for f in planes]
+            self.assertGreater(min(gaps),-1e-7)
+            self.assertLess(min(abs(x) for x in gaps),1e-7)
+            key=tuple(round(x,6) for x in p)
+            if key in seen:self.assertLess(math.dist(n,seen[key]),1e-6)
+            seen[key]=n
+        slots=[int(p[0]*2)+2*int(p[1]*2) for p in uv]
+        self.assertEqual(set(slots),{0,1,2,3})
+        winding=defaultdict(set); coordinates={}
+        for start in range(0,len(ids),3):
+            tri=ids[start:start+3]
+            self.assertEqual(len({slots[i] for i in tri}),1)
+            a,b,c=[uv[i] for i in tri]
+            area=(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0])
+            winding[slots[tri[0]]].add(area>0)
+            for i in tri:
+                key=(slots[i],tuple(round(x,6) for x in ps[i]))
+                if key in coordinates:self.assertLess(math.dist(uv[i],coordinates[key]),1e-6)
+                coordinates[key]=uv[i]
+        self.assertTrue(all(len(signs)==1 for signs in winding.values()))
+        for p,n in zip(read(pips['attributes']['POSITION'],3),read(pips['attributes']['NORMAL'],3)):
+            # The whole circle must remain on the planar face, inside the fillet.
+            core=[p[k]-(radius+.001)*n[k] for k in range(3)]
+            self.assertGreater(min(1.125/3-radius-dot(core,f) for f in planes),-1e-7)
+
+    def test_packaged_zip_matches_current_models_and_manifest(self):
+        import hashlib, zipfile
+        with zipfile.ZipFile(ROOT/'dist/mod.zip') as archive:
+            release=json.loads(archive.read('release.json'))
+            self.assertEqual(archive.read('release.json'),(ROOT/'release.json').read_bytes())
+            self.assertEqual(archive.read('catalog.json'),(ROOT/'catalog.json').read_bytes())
+            for item in release['files']:
+                data=archive.read(item['path'])
+                self.assertEqual(data,(ROOT/item['path']).read_bytes())
+                self.assertEqual(len(data),item['bytes'])
+                self.assertEqual(hashlib.sha256(data).hexdigest(),item['sha256'])
 
 
 if __name__ == '__main__':

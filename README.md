@@ -24,7 +24,9 @@ Run `npm run build` to package the current working tree into `dist/mod.zip`. Thi
 
 Regenerate the regular Ur tetrahedron with `python3 source/ur-dice/generate.py`, package it with `npm run build`, then validate both geometry and the ZIP with `python3 scripts/test_dice.py`.
 
-The generator derives the centred geometry, 1.2 mm rounded bevels, smooth normals, four face UV islands with integrated rims and six circular corner markings from a regular tetrahedron. Its four roll poses use `-acos(-1/3)` (-109.4712206°), 180°, ±60° and zeros. It updates both `catalog.json` and the embedded glTF face metadata, plus the explicit die sizes in `release.json` so Play does not stretch the new mesh. The poses are symmetries of the entire tetrahedron: all four outcomes have the same footprint, silhouette and resting height, while the marked corner changes. Ur uses solid materials and geometric dots, so no texture images need rebaking. The earlier imported D4 files remain as historical source references; regeneration no longer reads them.
+The generator derives the centred geometry, 1.2 mm rounded bevels, smooth normals and four face UV islands with integrated rims from a regular tetrahedron. The original 148-triangle body is unchanged by paint. `paint_texture.py` bakes two black rounded corner markings onto a white body in an embedded 1024px texture, with soft antialiased edges, padded UV islands and mipmap filtering. The paint is flat and does not alter the normals.
+
+The four roll poses use `-acos(-1/3)` (-109.4712206°), 180°, ±60° and zeros. Regeneration updates both `catalog.json` and the embedded glTF face metadata, plus the explicit die sizes in `release.json` so Play does not stretch the mesh. The poses are symmetries of the entire tetrahedron: all four outcomes have the same footprint, silhouette and resting height, while the marked corner changes. The earlier imported D4 files remain as historical source references; regeneration no longer reads them.
 
 The generated die also receives a lossless vertex-welding and cache/fetch-order
 pass (`source/ur-dice/optimize_gltf.py`, shared with the tokens generator).

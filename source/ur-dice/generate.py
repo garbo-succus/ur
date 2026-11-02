@@ -15,7 +15,6 @@ RADIUS = 1.125
 SCALE = 0.016
 BEVEL = 0.0012 / SCALE
 SEGMENTS = 2
-PIP_SEGMENTS = 16
 TILT = math.acos(-1 / 3)
 TURN = math.pi / 3
 
@@ -128,39 +127,11 @@ for corner in range(4):
                     if i+j<SEGMENTS-1:
                         triangle(grid[i+1,j],grid[i+1,j+1],grid[i,j+1])
 
+# Paint lives entirely in a filtered texture on the original rounded body.
+# No paint-specific geometry, subdivisions, offsets or changes to normals.
 body = (positions, normals, uvs, indices)
-positions, normals, uvs, indices = [], [], [], []
-for face, corners in enumerate(face_points):
-    normal = face_normals[face]
-    centroid = mul(tuple(sum(p[i] for p in corners.values()) for i in range(3)), 1/3)
-    points = list(corners.values())
-    u = unit(sub(points[1], points[0]))
-    v = cross(normal, u)
-    for corner, point in corners.items():
-        if corner not in (0, 1):
-            continue
-        center = add(add(mul(point, 0.70), mul(centroid, 0.30)), mul(normal, 0.001))
-        start = len(positions)
-        island = start // (PIP_SEGMENTS + 1)
-
-        def pip_uv(x, y):
-            # Separate islands allow future texture edits without repeating
-            # a mark on all six circles. Gutters prevent filtering bleed.
-            return ((island % 3 + 0.04 + 0.92*x)/3,
-                    (island // 3 + 0.04 + 0.92*y)/2)
-
-        positions.append(center)
-        normals.append(normal)
-        uvs.append(pip_uv(0.5, 0.5))
-        for step in range(PIP_SEGMENTS):
-            angle = step * math.tau / PIP_SEGMENTS
-            positions.append(add(center, add(mul(u, 0.075*math.cos(angle)), mul(v, 0.075*math.sin(angle)))))
-            normals.append(normal)
-            uvs.append(pip_uv(0.5+0.5*math.cos(angle), 0.5+0.5*math.sin(angle)))
-        for step in range(PIP_SEGMENTS):
-            triangle(start, start+1+step, start+1+(step+1) % PIP_SEGMENTS)
-pips = (positions, normals, uvs, indices)
-assert len(positions) == 6*(PIP_SEGMENTS + 1)
+from paint_texture import bake
+paint_png = bake(positions, uvs, indices)
 
 # Each face pose brings the opposite corner to the top. The top and right
 # corners are marked, preserving the existing outcome order 0, 0, 1, 1.
@@ -178,10 +149,13 @@ doc = {
     'scene': 0, 'scenes': [{'nodes': [0]}],
     'nodes': [{'mesh': 0, 'name': 'Ur die', 'scale': [SCALE]*3}],
     'meshes': [{'name': 'Regular Ur tetrahedron', 'primitives': []}],
-    'materials': [
-        {'name': 'Black die', 'pbrMetallicRoughness': {'baseColorFactor': [0.009, 0.009, 0.009, 1], 'metallicFactor': 0, 'roughnessFactor': 0.38}},
-        {'name': 'White corner circles', 'pbrMetallicRoughness': {'baseColorFactor': [1, 1, 1, 1], 'metallicFactor': 0, 'roughnessFactor': 0.55}},
-    ],
+    'materials': [{'name': 'White die with soft black corner paint',
+                   'pbrMetallicRoughness': {'baseColorFactor': [1, 1, 1, 1],
+                                            'baseColorTexture': {'index': 0},
+                                            'metallicFactor': 0, 'roughnessFactor': 0.45}}],
+    'images': [{'uri': 'data:image/png;base64,'+base64.b64encode(paint_png).decode()}],
+    'samplers': [{'magFilter': 9729, 'minFilter': 9987, 'wrapS': 33071, 'wrapT': 33071}],
+    'textures': [{'source': 0, 'sampler': 0}],
     'bufferViews': [], 'accessors': [],
     'extras': {'probability': {'faces': faces}},
 }
@@ -210,7 +184,7 @@ def accessor(values, components, kind, fmt='f', component_type=5126):
     return index
 
 
-for material, (ps, ns, uv, ids) in enumerate((body, pips)):
+for material, (ps, ns, uv, ids) in enumerate((body,)):
     doc['meshes'][0]['primitives'].append({
         'attributes': {'POSITION': accessor(ps, 3, 'VEC3'), 'NORMAL': accessor(ns, 3, 'VEC3'),
                        'TEXCOORD_0': accessor(uv, 2, 'VEC2')},

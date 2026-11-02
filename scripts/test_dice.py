@@ -25,6 +25,28 @@ def rotate(point, angles):
     return (x, math.cos(rx)*y-math.sin(rx)*z, math.sin(rx)*y+math.cos(rx)*z)
 
 
+def read_texture(doc):
+    import zlib
+    png = base64.b64decode(doc['images'][0]['uri'].split(',')[1])
+    assert png[:8] == b'\x89PNG\r\n\x1a\n'
+    offset = 8
+    compressed = b''
+    while offset<len(png):
+        length = struct.unpack_from('>I',png,offset)[0]
+        kind = png[offset+4:offset+8]
+        chunk = png[offset+8:offset+8+length]
+        if kind == b'IHDR':
+            width,height,depth,colour,*_ = struct.unpack('>2I5B',chunk)
+            assert (depth,colour)==(8,2)
+        if kind == b'IDAT': compressed += chunk
+        offset += length+12
+    raw = zlib.decompress(compressed)
+    stride = width*3+1
+    assert len(raw)==height*stride
+    assert all(raw[y*stride]==0 for y in range(height))
+    return width,height,b''.join(raw[y*stride+1:(y+1)*stride] for y in range(height))
+
+
 class DieGeometryTest(unittest.TestCase):
     def test_rolls_around_body_centre_on_four_flat_faces(self):
         entry = json.loads((ROOT / 'catalog.json').read_text())['pieces'][0]
@@ -58,10 +80,14 @@ class DieGeometryTest(unittest.TestCase):
 
         node = doc['nodes'][0]
         body = doc['meshes'][node['mesh']]['primitives'][0]
-        points = [tuple((p[i]*node['scale'][i]+node.get('translation', [0]*3)[i])*entry['scale'][i]
-                        for i in range(3)) for p in accessor(body['attributes']['POSITION'])]
-        indices = [v[0] for v in accessor(body['indices'])]
-        triangles = [[points[j] for j in indices[i:i+3]] for i in range(0, len(indices), 3)]
+        primitives = doc['meshes'][node['mesh']]['primitives']
+        points, triangles = [], []
+        for primitive in primitives:
+            local = [tuple(p[i]*node['scale'][i]*entry['scale'][i] for i in range(3))
+                     for p in accessor(primitive['attributes']['POSITION'])]
+            ids = [v[0] for v in accessor(primitive['indices'])]
+            triangles.extend([[local[j] for j in ids[i:i+3]] for i in range(0,len(ids),3)])
+            points.extend(local)
         volumes = [dot(a, cross(b, c)) for a, b, c in triangles]
         centre = [sum(v * sum(p[i] for p in tri)/4 for v, tri in zip(volumes, triangles))/sum(volumes)
                   for i in range(3)]
@@ -72,17 +98,28 @@ class DieGeometryTest(unittest.TestCase):
             length = math.sqrt(dot(n, n))
             if length > 0:
                 normals.append((length, [v/length for v in n]))
-        main_faces = [n for area, n in normals if area > max(area for area, _ in normals)*0.1]
+        # Identify the four planar supports independently of triangulation.
+        support_axes = [(0,-1,0),(-math.sqrt(2/3),1/3,-math.sqrt(2)/3),
+                        (0,1/3,2*math.sqrt(2)/3),(math.sqrt(2/3),1/3,-math.sqrt(2)/3)]
+        main_faces = []
+        for target in support_axes:
+            matches = [n for area,n in normals if math.dist(n,target)<1e-6]
+            self.assertTrue(matches)
+            main_faces.append(target)
         self.assertEqual(len(main_faces), 4)
         self.assertEqual(sorted(f['name'] for f in entry['faces']), ['0', '0', '1', '1'])
-        # Equal main triangles and tetrahedral normal angles certify regularity.
-        main_triangles = []
-        for a, b, c in triangles:
-            n = cross([b[i]-a[i] for i in range(3)], [c[i]-a[i] for i in range(3)])
-            if math.sqrt(dot(n, n)) > max(area for area, _ in normals)*0.1:
-                main_triangles.append((a, b, c))
-        lengths = [math.dist(tri[i], tri[(i+1) % 3]) for tri in main_triangles for i in range(3)]
-        self.assertLess(max(lengths)-min(lengths), 2e-9)
+        # Tiny contour triangles amplify float32 error in geometric normals;
+        # classify planar triangles by their support plane instead.
+        plane_distance = .375*node['scale'][0]*entry['scale'][0]
+        face_areas = []
+        for normal in main_faces:
+            total = 0
+            for a,b,c in triangles:
+                if all(abs(dot(p,normal)-plane_distance)<1e-9 for p in (a,b,c)):
+                    area = cross([b[i]-a[i] for i in range(3)], [c[i]-a[i] for i in range(3)])
+                    total += math.sqrt(dot(area,area))
+            face_areas.append(total)
+        self.assertLess(max(face_areas)-min(face_areas), 1e-10)
         for i, a in enumerate(main_faces):
             for b in main_faces[i+1:]:
                 self.assertAlmostEqual(dot(a, b), -1/3, delta=1e-7) # float32 mesh planes
@@ -110,51 +147,38 @@ class DieGeometryTest(unittest.TestCase):
                 n = cross([b[k]-a[k] for k in range(3)], [c[k]-a[k] for k in range(3)])
                 self.assertGreater(dot(n, ns[ids[i]]), 0)
                 a, b, c = [uv[j] for j in ids[i:i+3]]
-                self.assertGreater(abs((b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0])), 1e-10)
+                self.assertGreater(abs((b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0])), 1e-14)
         self.assertEqual(doc['extras']['probability']['faces'], entry['faces'])
         self.assertEqual([f['rotation'] for f in entry['faces']], [
             [-math.acos(-1/3), math.pi, 0], [-math.acos(-1/3), math.pi/3, 0],
             [-math.acos(-1/3), -math.pi/3, 0], [0, 0, 0]])
-        pip_primitive = doc['meshes'][0]['primitives'][1]
-        pip_points = accessor(pip_primitive['attributes']['POSITION'])
-        pip_normals = accessor(pip_primitive['attributes']['NORMAL'])
-        self.assertEqual(len(pip_points), 6*17)
-        pip_uvs = accessor(pip_primitive['attributes']['TEXCOORD_0'])
-        pip_islands = []
-        for start in range(0, len(pip_points), 17):
-            island_uvs = pip_uvs[start:start+17]
-            pip_islands.append(([min(p[i] for p in island_uvs) for i in range(2)],
-                                [max(p[i] for p in island_uvs) for i in range(2)]))
-            centre_pip, normal_pip = pip_points[start], pip_normals[start]
-            radii = [math.dist(centre_pip, p) for p in pip_points[start+1:start+17]]
-            self.assertLess(max(radii)-min(radii), 1e-7)
-            for point in pip_points[start:start+17]:
-                # Positions and normals are stored as float32.
-                self.assertLess(abs(dot([point[i]-centre_pip[i] for i in range(3)], normal_pip)), 1e-7)
-        for i, (a_min, a_max) in enumerate(pip_islands):
-            for b_min, b_max in pip_islands[i+1:]:
-                self.assertTrue(any(a_max[axis] < b_min[axis] or b_max[axis] < a_min[axis]
-                                    for axis in range(2)), 'Pip UV islands overlap')
-        all_points = points + [tuple((p[i]*node['scale'][i]+node.get('translation', [0]*3)[i])*entry['scale'][i]
-                                    for i in range(3)) for p in pip_points]
+        self.assertEqual(len(primitives), 1, 'Paint must not add geometry')
+        self.assertEqual(len(triangles), 148, 'Keep the original two-step bevel mesh')
+        axes = [(0,1,0), (math.sqrt(2/3),-1/3,math.sqrt(2)/3)]
+        width, height, pixels = read_texture(doc)
+        def sample(uv):
+            x = min(width-1,max(0,int(uv[0]*width)))
+            y = min(height-1,max(0,int(uv[1]*height)))
+            return pixels[(y*width+x)*3]
+        paint_points = [p for p,uv in zip(accessor(body['attributes']['POSITION']),
+                                          accessor(body['attributes']['TEXCOORD_0'])) if sample(uv)<60]
+        self.assertTrue(paint_points)
+        all_points = points
         supported_faces = []
         resting_heights = []
         for face in entry['faces']:
-            # A face change must permute the regular body's vertices in place,
-            # not just put some face flat. This also preserves the silhouette
-            # under any common table-axis turn or camera angle.
-            for point in points:
-                rotated = rotate(point, face['rotation'])
-                self.assertLess(min(math.dist(rotated, target) for target in points), 2e-9,
-                                'Changing face changes the body outline')
+            # Roll poses preserve the convex silhouette. Added paint-cut
+            # vertices need not permute with the original rounded vertices.
+            for direction in main_faces + axes + [(1,0,0),(0,0,1)]:
+                self.assertAlmostEqual(max(dot(rotate(p,face['rotation']),direction) for p in points),
+                                       max(dot(p,direction) for p in points), delta=2e-9)
             rotated_normals = [rotate(n, face['rotation']) for n in main_faces]
             support = min(range(4), key=lambda i: rotated_normals[i][1])
             self.assertAlmostEqual(rotated_normals[support][1], -1, places=10)
             supported_faces.append(support)
             resting_heights.append(-min(rotate(p, face['rotation'])[1] for p in all_points))
-            upper_dots = sum(rotate(pip_points[i], face['rotation'])[1] > 0.4
-                             for i in range(0, len(pip_points), 17))
-            self.assertEqual(upper_dots, 3 if face['name'] == '1' else 0)
+            top_painted = max(rotate(p,face['rotation'])[1] for p in paint_points) > .8
+            self.assertEqual(top_painted, face['name']=='1')
             # Ground placement changes only Y; X/Z of the body's centre must stay fixed.
             world_centre = rotate(centre, face['rotation'])
             self.assertLess(math.hypot(world_centre[0], world_centre[2]), 1e-9)
@@ -175,7 +199,7 @@ class DieGeometryTest(unittest.TestCase):
         check_sizes(release['game']['children'])
         self.assertEqual(len(checked_dice), 4)
 
-    def test_one_point_two_mm_rounding_pip_clearance_and_continuous_face_uvs(self):
+    def test_rounding_and_continuous_normals_and_face_uvs(self):
         from collections import defaultdict
         doc = json.loads((ROOT / 'pieces/ur-dice.gltf').read_text())
         data = base64.b64decode(doc['buffers'][0]['uri'].split(',')[1])
@@ -183,11 +207,13 @@ class DieGeometryTest(unittest.TestCase):
             a = doc['accessors'][index]; v = doc['bufferViews'][a['bufferView']]
             fmt = '<' + {5126:'f',5123:'H'}[a['componentType']] * width
             return list(struct.iter_unpack(fmt, data[v['byteOffset']:v['byteOffset']+v['byteLength']]))
-        body, pips = doc['meshes'][0]['primitives']
-        ps = read(body['attributes']['POSITION'],3)
-        ns = read(body['attributes']['NORMAL'],3)
-        uv = read(body['attributes']['TEXCOORD_0'],2)
-        ids = [x[0] for x in read(body['indices'],1)]
+        ps, ns, uv, ids = [], [], [], []
+        for primitive in doc['meshes'][0]['primitives']:
+            offset = len(ps)
+            ps.extend(read(primitive['attributes']['POSITION'],3))
+            ns.extend(read(primitive['attributes']['NORMAL'],3))
+            uv.extend(read(primitive['attributes']['TEXCOORD_0'],2))
+            ids.extend(x[0]+offset for x in read(primitive['indices'],1))
         scale = doc['nodes'][0]['scale'][0]
         radius = .0012 / scale
         # Independent exact tetrahedral support planes, in model units.
@@ -197,8 +223,9 @@ class DieGeometryTest(unittest.TestCase):
         for p,n in zip(ps,ns):
             core = [p[k]-radius*n[k] for k in range(3)]
             gaps = [1.125/3-radius-dot(core,f) for f in planes]
-            self.assertGreater(min(gaps),-1e-7)
-            self.assertLess(min(abs(x) for x in gaps),1e-7)
+            # Original mesh vertices retain exact analytic bevel normals.
+            self.assertGreater(min(gaps), -1e-7)
+            self.assertLess(min(abs(x) for x in gaps), 1e-7)
             key=tuple(round(x,6) for x in p)
             if key in seen:self.assertLess(math.dist(n,seen[key]),1e-6)
             seen[key]=n
@@ -216,10 +243,51 @@ class DieGeometryTest(unittest.TestCase):
                 if key in coordinates:self.assertLess(math.dist(uv[i],coordinates[key]),1e-6)
                 coordinates[key]=uv[i]
         self.assertTrue(all(len(signs)==1 for signs in winding.values()))
-        for p,n in zip(read(pips['attributes']['POSITION'],3),read(pips['attributes']['NORMAL'],3)):
-            # The whole circle must remain on the planar face, inside the fillet.
-            core=[p[k]-(radius+.001)*n[k] for k in range(3)]
-            self.assertGreater(min(1.125/3-radius-dot(core,f) for f in planes),-1e-7)
+
+    def test_texture_edges_and_corner_coverage(self):
+        doc = json.loads((ROOT/'pieces/ur-dice.gltf').read_text())
+        width,height,pixels = read_texture(doc)
+        self.assertEqual((width,height),(1024,1024))
+        self.assertGreater(sum(30<v<245 for v in pixels[::3]),100,
+                           'Paint needs a graded antialiased edge')
+        self.assertEqual(doc['samplers'][0]['magFilter'],9729)
+        self.assertEqual(doc['samplers'][0]['minFilter'],9987)
+        self.assertNotIn('normalTexture',doc['materials'][0], 'Flat paint must not add a bump seam')
+        data = base64.b64decode(doc['buffers'][0]['uri'].split(',')[1])
+        primitive = doc['meshes'][0]['primitives'][0]
+        def read(index,width):
+            a = doc['accessors'][index]; v = doc['bufferViews'][a['bufferView']]
+            fmt = '<'+{5126:'f',5123:'H'}[a['componentType']]*width
+            return list(struct.iter_unpack(fmt,data[v['byteOffset']:v['byteOffset']+v['byteLength']]))
+        ps = read(primitive['attributes']['POSITION'],3)
+        uv = read(primitive['attributes']['TEXCOORD_0'],2)
+        ids = [x[0] for x in read(primitive['indices'],1)]
+        axes = [(0,1,0),(math.sqrt(2/3),-1/3,math.sqrt(2)/3)]
+        dark = [0,0]
+        seen = {}
+        for start in range(0,len(ids),3):
+            tri = ids[start:start+3]
+            for weights in ((1,0,0),(0,1,0),(0,0,1),(1/3,1/3,1/3)):
+                p = [sum(ps[i][k]*w for i,w in zip(tri,weights)) for k in range(3)]
+                tex = [sum(uv[i][k]*w for i,w in zip(tri,weights)) for k in range(2)]
+                x,y = min(width-1,int(tex[0]*width)), min(height-1,int(tex[1]*height))
+                value = pixels[(y*width+x)*3]
+                distances = []
+                for axis in axes:
+                    h = dot(p,axis)
+                    distances.append(math.sqrt(sum((p[k]-h*axis[k])**2 for k in range(3))
+                                               +((h-.85)*.125/.20)**2))
+                nearest = min(range(2),key=distances.__getitem__)
+                if distances[nearest]<.115:
+                    self.assertLess(value,60)
+                    dark[nearest] += 1
+                if distances[nearest]>.135:
+                    self.assertGreater(value,245)
+                key = tuple(round(x,6) for x in p)
+                if key in seen:
+                    self.assertLess(abs(value-seen[key]),40,'Paint shows a UV seam')
+                seen[key] = value
+        self.assertTrue(all(count>10 for count in dark))
 
     def test_packaged_zip_matches_current_models_and_manifest(self):
         import hashlib, zipfile

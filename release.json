@@ -159,17 +159,17 @@
         "projection": {
           "kind": "storage-mapping",
           "storageMapping": {
-            "contentHash": "sha256:c5053edd6f4914ee4afa16bd8297f5060a53fc6953d2eb2794cbd16049d69de6",
+            "contentHash": "sha256:3536ed7bb9f35fd42d2f2d586ed89d5b884f763f1260ef7c2ed81eaa4a636f3b",
             "id": "urn:probability:mapping:game-automerge@1"
           }
         },
         "storageSchema": {
-          "contentHash": "sha256:d44478925c28f3b90189ae44f782e627e60cf69daf6af43a1a537a1c8b223924",
+          "contentHash": "sha256:21aa3a28c4fbef16b497aeddd557881463d068c04753b9f156487b40e98211dc",
           "id": "urn:probability:schema:game@1"
         }
       },
       "schema": {
-        "contentHash": "sha256:d44478925c28f3b90189ae44f782e627e60cf69daf6af43a1a537a1c8b223924",
+        "contentHash": "sha256:21aa3a28c4fbef16b497aeddd557881463d068c04753b9f156487b40e98211dc",
         "id": "urn:probability:schema:game@1"
       },
       "schemas": {
@@ -294,11 +294,11 @@
               }
             },
             "schema": {
-              "contentHash": "sha256:d44478925c28f3b90189ae44f782e627e60cf69daf6af43a1a537a1c8b223924",
+              "contentHash": "sha256:21aa3a28c4fbef16b497aeddd557881463d068c04753b9f156487b40e98211dc",
               "id": "urn:probability:schema:game@1"
             }
           },
-          "contentHash": "sha256:c5053edd6f4914ee4afa16bd8297f5060a53fc6953d2eb2794cbd16049d69de6",
+          "contentHash": "sha256:3536ed7bb9f35fd42d2f2d586ed89d5b884f763f1260ef7c2ed81eaa4a636f3b",
           "dependencies": [],
           "formatVersion": 1,
           "id": "urn:probability:mapping:game-automerge@1",
@@ -457,21 +457,7 @@
                   "tint": {
                     "optional": true,
                     "type": {
-                      "items": [
-                        {
-                          "kind": "number"
-                        },
-                        {
-                          "kind": "number"
-                        },
-                        {
-                          "kind": "number"
-                        },
-                        {
-                          "kind": "number"
-                        }
-                      ],
-                      "kind": "tuple"
+                      "kind": "string"
                     }
                   }
                 },
@@ -482,7 +468,7 @@
               }
             }
           },
-          "contentHash": "sha256:d44478925c28f3b90189ae44f782e627e60cf69daf6af43a1a537a1c8b223924",
+          "contentHash": "sha256:21aa3a28c4fbef16b497aeddd557881463d068c04753b9f156487b40e98211dc",
           "dependencies": [],
           "formatVersion": 1,
           "id": "urn:probability:schema:game@1",
@@ -617,13 +603,7 @@
                                   0.020000000298023228,
                                   0.019345028400421148
                                 ],
-                                "src": "pieces/gem.glb",
-                                "tint": [
-                                  1.0,
-                                  1.0,
-                                  1.0,
-                                  1
-                                ]
+                                "src": "pieces/gem.glb"
                               }
                             ],
                             "position": [
@@ -641,13 +621,7 @@
                               0.020000000298023228,
                               0.019345028400421148
                             ],
-                            "src": "pieces/gem.glb",
-                            "tint": [
-                              1.0,
-                              1.0,
-                              1.0,
-                              1
-                            ]
+                            "src": "pieces/gem.glb"
                           }
                         ],
                         "position": [
@@ -665,13 +639,7 @@
                           0.020000000298023228,
                           0.019345028400421148
                         ],
-                        "src": "pieces/gem.glb",
-                        "tint": [
-                          1.0,
-                          1.0,
-                          1.0,
-                          1
-                        ]
+                        "src": "pieces/gem.glb"
                       }
                     ],
                     "position": [
@@ -689,13 +657,7 @@
                       0.020000000298023228,
                       0.019345028400421148
                     ],
-                    "src": "pieces/gem.glb",
-                    "tint": [
-                      1.0,
-                      1.0,
-                      1.0,
-                      1
-                    ]
+                    "src": "pieces/gem.glb"
                   }
                 ],
                 "position": [
@@ -713,13 +675,7 @@
                   0.020000000298023228,
                   0.019345028400421148
                 ],
-                "src": "pieces/gem.glb",
-                "tint": [
-                  1.0,
-                  1.0,
-                  1.0,
-                  1
-                ]
+                "src": "pieces/gem.glb"
               }
             ],
             "position": [
@@ -737,13 +693,7 @@
               0.020000000298023228,
               0.019345028400421148
             ],
-            "src": "pieces/gem.glb",
-            "tint": [
-              1.0,
-              1.0,
-              1.0,
-              1
-            ]
+            "src": "pieces/gem.glb"
           }
         ],
         "position": [
@@ -761,13 +711,7 @@
           0.020000000298023228,
           0.019345028400421148
         ],
-        "src": "pieces/gem.glb",
-        "tint": [
-          1.0,
-          1.0,
-          1.0,
-          1
-        ]
+        "src": "pieces/gem.glb"
       },
       {
         "children": [
@@ -799,12 +743,7 @@
                                   0.019345028400421148
                                 ],
                                 "src": "pieces/gem.glb",
-                                "tint": [
-                                  0.08021982031446832,
-                                  0.19806931955994886,
-                                  0.5775804404296506,
-                                  1
-                                ]
+                                "tint": "#143393"
                               }
                             ],
                             "position": [
@@ -823,12 +762,7 @@
                               0.019345028400421148
                             ],
                             "src": "pieces/gem.glb",
-                            "tint": [
-                              0.08021982031446832,
-                              0.19806931955994886,
-                              0.5775804404296506,
-                              1
-                            ]
+                            "tint": "#143393"
                           }
                         ],
                         "position": [
@@ -847,12 +781,7 @@
                           0.019345028400421148
                         ],
                         "src": "pieces/gem.glb",
-                        "tint": [
-                          0.08021982031446832,
-                          0.19806931955994886,
-                          0.5775804404296506,
-                          1
-                        ]
+                        "tint": "#143393"
                       }
                     ],
                     "position": [
@@ -871,12 +800,7 @@
                       0.019345028400421148
                     ],
                     "src": "pieces/gem.glb",
-                    "tint": [
-                      0.08021982031446832,
-                      0.19806931955994886,
-                      0.5775804404296506,
-                      1
-                    ]
+                    "tint": "#143393"
                   }
                 ],
                 "position": [
@@ -895,12 +819,7 @@
                   0.019345028400421148
                 ],
                 "src": "pieces/gem.glb",
-                "tint": [
-                  0.08021982031446832,
-                  0.19806931955994886,
-                  0.5775804404296506,
-                  1
-                ]
+                "tint": "#143393"
               }
             ],
             "position": [
@@ -919,12 +838,7 @@
               0.019345028400421148
             ],
             "src": "pieces/gem.glb",
-            "tint": [
-              0.08021982031446832,
-              0.19806931955994886,
-              0.5775804404296506,
-              1
-            ]
+            "tint": "#143393"
           }
         ],
         "position": [
@@ -943,12 +857,7 @@
           0.019345028400421148
         ],
         "src": "pieces/gem.glb",
-        "tint": [
-          0.08021982031446832,
-          0.19806931955994886,
-          0.5775804404296506,
-          1
-        ]
+        "tint": "#143393"
       }
     ],
     "title": "The Royal Game of Ur",

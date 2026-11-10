@@ -293,6 +293,12 @@ class DieGeometryTest(unittest.TestCase):
         import hashlib, zipfile
         with zipfile.ZipFile(ROOT/'dist/mod.zip') as archive:
             release=json.loads(archive.read('release.json'))
+            self.assertEqual(release['@patchwork'], {'type': 'probability-release'})
+            self.assertEqual(release['version'], 1)
+            self.assertEqual(release['game']['@patchwork'], {'type': 'probability'})
+            self.assertEqual(release['game']['formatVersion'], 0)
+            self.assertNotIn('@probability', release)
+            self.assertNotIn('@probability', release['game'])
             self.assertEqual(archive.read('release.json'),(ROOT/'release.json').read_bytes())
             self.assertEqual(archive.read('catalog.json'),(ROOT/'catalog.json').read_bytes())
             for item in release['files']:

@@ -20,7 +20,13 @@ RELEASED UNDER [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/dee
 
 The current Play setup is in `release.json`. Models use metre dimensions and every piece has an explicit `size`; resting heights and stacks are resolved by Play.
 
-Run `npm run build` to package the current working tree into `dist/mod.zip`. This includes uncommitted edits. Load that ZIP with Play → Edit → Create → Load, or open this folder through a template URL.
+Run `npm run build` to package the current working tree into `dist/mod.zip`. This includes uncommitted edits. Load that ZIP with Play → File → Load game, or open this folder through a template URL.
+
+The manifest uses Play release version 1 (`@patchwork.type: probability-release`)
+and game format version 0 (`@patchwork.type: probability`, `formatVersion: 0`).
+Schema definitions remain in Play; do not copy legacy `@probability` schema
+hashes or definitions into the release. The build checks these format markers
+before packaging, then refreshes file sizes and checksums.
 
 Regenerate the regular Ur tetrahedron with `python3 source/ur-dice/generate.py`, package it with `npm run build`, then validate both geometry and the ZIP with `python3 scripts/test_dice.py`.
 
